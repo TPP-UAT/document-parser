@@ -36,89 +36,55 @@ def show_pdf_divided_by_page_number_and_blocks(file_path, page_number, amount_of
             
     # print("unified_tsaurus_text", unified_tsaurus_text)
 
-def union(rect1, rect2):
+def union_rectangles(rectangles):
     """
-    Combine two rectangles.
+    Combine multiple rectangles into one.
     """
 
-    xmin = min(rect1.x0, rect2.x0)
-    xmax = max(rect1.x1, rect2.x1)
-    ymin = min(rect1.y0, rect2.y0)
-    ymax = max(rect1.y1, rect2.y1)
+    xmin = min([r.x0 for r in rectangles])
+    xmax = max([r.x1 for r in rectangles])
+    ymin = min([r.y0 for r in rectangles])
+    ymax = max([r.y1 for r in rectangles])
 
     return Rect(xmin, ymin, xmax, ymax)
 
-def modify_scientific_paper(file_path):
-    doc = fitz.open(file_path)
+def get_text_length(text):
+    return fitz.get_text_length(text["text"], fontname=text["font"], fontsize=text["fontsize"])
 
-    page = doc[0]
-    text = page.get_text()
-
+def match_text_for_replacing(text):
+    # Change the regex to match documents
     regex = r'Uniﬁed Astronomy Thesaurus concepts:\s*((?:[^;)]+\(\d+\);\s*)+[^;)]+\(\d+\))'
-    key_words_paragraph = re.findall(regex, text)
-    key_to_replace = 'Uniﬁed Astronomy Thesaurus concepts: ' + key_words_paragraph[0]
+    keys_words_paragraph = re.findall(regex, text)
+    keys_to_replace = 'Uniﬁed Astronomy Thesaurus concepts: ' + keys_words_paragraph[0]
+    return keys_to_replace
 
-    text_to_replace = page.search_for(key_to_replace)
-    print("text_to_replace", text_to_replace)
-     # Concatena los rectángulos en una sola entidad.
-    combined_rect = union(text_to_replace[0], text_to_replace[1])
-
-    new_text = 'Lionel Messi es un reconocido futbolista argentino que es ampliamente considerado como uno de los mejores jugadores de fútbol de todos los tiempos. Nació el 24 de junio de 1987 en Rosario, Argentina. '
-
-    # Agrega la anotación de censura.
-    page.add_redact_annot(combined_rect, new_text, fontsize=10, fontname="Times-Roman")
-
-    page.apply_redactions()
-
-    doc.save("test2.pdf")
-
-def modify_scientific_paper2(file_path):
-    doc = fitz.open(file_path)
-
-    page = doc[0]
-    text = page.get_text()
-
-    regex = r'Uniﬁed Astronomy Thesaurus concepts:\s*((?:[^;)]+\(\d+\);\s*)+[^;)]+\(\d+\))'
-    key_words_paragraph = re.findall(regex, text)
-    key_to_replace = 'Uniﬁed Astronomy Thesaurus concepts: ' + key_words_paragraph[0]
-
-    text_to_replace = page.search_for(key_to_replace)
-     # Concatena los rectángulos en una sola entidad.
-    combined_rect = union(text_to_replace[0], text_to_replace[1])
-
-    # Creo el texto que va a ir en italica y el normal
-    new_text = [
-        {"text": "Unified Astronomy Thesaurus concepts:", "font": "Times-Italic", "fontsize": 10},
-        {"text": "A esto es un link muy largo largo", "font": "Times-Roman", "fontsize": 10, "link": "https://www.ejemplo1.com"},
-        {"text": "B esto es un link muy largo largo", "font": "Times-Roman", "fontsize": 10, "link": "https://www.ejemplo2.com"},
-        {"text": "C esto es un link muy largo largo", "font": "Times-Roman", "fontsize": 10, "link": "https://www.ejemplo3.com"},
-        {"text": "D esto es un link muy largo largo", "font": "Times-Roman", "fontsize": 10, "link": "https://www.ejemplo4.com"},
-        {"text": "E esto es un link muy largo largo", "font": "Times-Roman", "fontsize": 10, "link": "https://www.ejemplo5.com"},
-    ]
-
-    page.add_redact_annot(combined_rect, "")
-    page.apply_redactions()
-
-    # Make a rectangle on the available space
-    # page.draw_rect(fitz.Rect(combined_rect.x0, combined_rect.y0, combined_rect.x1, combined_rect.y1), color=(0, 1, 0), width=2)  # (1, 0, 0) representa el color rojo y 2 es el ancho del borde
-
+def create_text(page, text_to_add, combined_rect):
     # Get the position of the new combined rectangle
     text_height = 7
     x, y = combined_rect.x0, combined_rect.y0 + text_height
-    x0, y0, x1, y1 = combined_rect.x0, combined_rect.y0, combined_rect.x1, combined_rect.y1
+    x0, y0, x1, y1 = combined_rect.x0, combined_rect.y0, combined_rect.x1, combined_rect.y1 + 11
 
     # Iterate through text_parts and insert them with the specified styles
     count_parts = 0
-    for part in new_text:
+    for part in text_to_add:
         count_parts += 1
+        is_last_one = False
 
         # Text size
-        text_x = fitz.get_text_length(part["text"], fontname=part["font"], fontsize=part["fontsize"])
+        text_x = get_text_length(part)
 
+        # Check if next part is the last one
+        if (y1 - (y + 11) < 0.1 and x1 - (x + text_x + get_text_length(text_to_add[count_parts])) < 0.1):
+            is_last_one = True
+        
         # Check if the text needs to be moved to the line below
-        if (x1 - (x + text_x) < 1):
+        if (x1 - (x + text_x) < 0.1):
             x = x0
-            y += 12
+            y += 11
+
+        # Check if we exceeded the available space
+        if (y1 - y < 0.1):
+            break
 
         if "link" in part:
             # page.draw_rect(fitz.Rect(x, y - text_height, x + text_x, y), color=(1, 0, 0), width=2)  # (1, 0, 0) representa el color rojo y 2 es el ancho del borde
@@ -128,7 +94,7 @@ def modify_scientific_paper2(file_path):
             page.insert_link(link)
 
             # Add a semicolon after the link if not the last link
-            if count_parts < len(new_text):
+            if count_parts < len(text_to_add) and not is_last_one:
                 page.insert_text((x + text_x + 0.5, y), ";", fontname=part["font"], fontsize=part["fontsize"])
                 x += 5
         else:
@@ -138,11 +104,55 @@ def modify_scientific_paper2(file_path):
         # Update the position for the next part of the text
         x += text_x + 2    
 
-    # Agrega y aplica la anotacion
+def modify_scientific_paper(file_path, text_to_add):
+    doc = fitz.open(file_path)
 
-    doc.save("test2.pdf")
+    page = doc[0]
+    text = page.get_text()
+
+    keys_to_replace = match_text_for_replacing(text)
+    text_to_replace = page.search_for(keys_to_replace)
+    # Merge all the rectangles into one
+    combined_rect = union_rectangles(text_to_replace)
+
+    # Create a rectangle replacing the previous text
+    page.add_redact_annot(combined_rect, "")
+    page.apply_redactions()
+
+    # Make a rectangle on the available space
+    # page.draw_rect(fitz.Rect(x0, y0, x1, y1), color=(0, 1, 0), width=2)  # (1, 0, 0) representa el color rojo y 2 es el ancho del borde
+
+    create_text(page, text_to_add, combined_rect)
+
+    # Save the document
+    doc.save("test.pdf")
 
 if __name__ == "__main__":
-    test_file_name = "paper.pdf"
+    test_file_name = "paper3.pdf"
 
-    modify_scientific_paper2(test_file_name)
+    new_text = [
+        {"text": "Unified Astronomy Thesaurus concepts:", "font": "Times-Italic", "fontsize": 10},
+        {"text": "A esto es un link", "font": "Times-Roman", "fontsize": 10, "link": "https://www.ejemplo1.com"},
+        {"text": "B esto es un link", "font": "Times-Roman", "fontsize": 10, "link": "https://www.ejemplo2.com"},
+        {"text": "C esto es un link", "font": "Times-Roman", "fontsize": 10, "link": "https://www.ejemplo3.com"},
+        {"text": "D esto es un link", "font": "Times-Roman", "fontsize": 10, "link": "https://www.ejemplo4.com"},
+        {"text": "E esto es un link", "font": "Times-Roman", "fontsize": 10, "link": "https://www.ejemplo5.com"},
+        {"text": "F esto es un link", "font": "Times-Roman", "fontsize": 10, "link": "https://www.ejemplo5.com"},
+        {"text": "G esto es un link", "font": "Times-Roman", "fontsize": 10, "link": "https://www.ejemplo5.com"},
+        {"text": "H esto es un link", "font": "Times-Roman", "fontsize": 10, "link": "https://www.ejemplo5.com"},
+        {"text": "I esto es un link", "font": "Times-Roman", "fontsize": 10, "link": "https://www.ejemplo5.com"},
+        {"text": "J esto es un link", "font": "Times-Roman", "fontsize": 10, "link": "https://www.ejemplo5.com"},
+        {"text": "K esto es un link", "font": "Times-Roman", "fontsize": 10, "link": "https://www.ejemplo5.com"},
+        {"text": "L esto es un link", "font": "Times-Roman", "fontsize": 10, "link": "https://www.ejemplo5.com"},
+        {"text": "M esto es un link", "font": "Times-Roman", "fontsize": 10, "link": "https://www.ejemplo5.com"},
+        {"text": "N esto es un link", "font": "Times-Roman", "fontsize": 10, "link": "https://www.ejemplo5.com"},
+        {"text": "O esto es un link", "font": "Times-Roman", "fontsize": 10, "link": "https://www.ejemplo5.com"},
+        {"text": "P esto es un link", "font": "Times-Roman", "fontsize": 10, "link": "https://www.ejemplo5.com"},
+        {"text": "Q esto es un link", "font": "Times-Roman", "fontsize": 10, "link": "https://www.ejemplo5.com"},
+        {"text": "R esto es un link", "font": "Times-Roman", "fontsize": 10, "link": "https://www.ejemplo5.com"},
+        {"text": "S esto es un link", "font": "Times-Roman", "fontsize": 10, "link": "https://www.ejemplo5.com"},
+        {"text": "T esto es un link", "font": "Times-Roman", "fontsize": 10, "link": "https://www.ejemplo5.com"},
+        {"text": "I esto es un link", "font": "Times-Roman", "fontsize": 10, "link": "https://www.ejemplo5.com"},
+    ]
+
+    modify_scientific_paper(test_file_name, new_text)
