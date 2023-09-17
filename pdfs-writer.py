@@ -1,10 +1,5 @@
-from __future__ import print_function
-
 import fitz
 import re
-import sys
-import html
-from bs4 import BeautifulSoup
 from fitz import Rect
 
 def show_pdf_divided_by_page_number_and_blocks(file_path, page_number, amount_of_block):
@@ -59,7 +54,7 @@ def match_text_for_replacing(text):
     return keys_to_replace
 
 def create_text(page, text_to_add, combined_rect):
-    # Get the position of the new combined rectangle
+    # Get the position of the new combined rectangle, adding an extra line
     text_height = 7
     x, y = combined_rect.x0, combined_rect.y0 + text_height
     x0, y0, x1, y1 = combined_rect.x0, combined_rect.y0, combined_rect.x1, combined_rect.y1 + 11
@@ -87,7 +82,9 @@ def create_text(page, text_to_add, combined_rect):
             break
 
         if "link" in part:
+            # Make a rectangle on the available link space
             # page.draw_rect(fitz.Rect(x, y - text_height, x + text_x, y), color=(1, 0, 0), width=2)  # (1, 0, 0) representa el color rojo y 2 es el ancho del borde
+
             # If a link is defined in the part, create a link annotation
             page.insert_text((x, y), part["text"], fontname=part["font"], fontsize=part["fontsize"], color=(0, 0, 1))
             link = {"kind": 2, "uri": part["link"], "from": fitz.Rect(x, y - text_height, x + text_x, y)}
@@ -112,6 +109,7 @@ def modify_scientific_paper(file_path, text_to_add):
 
     keys_to_replace = match_text_for_replacing(text)
     text_to_replace = page.search_for(keys_to_replace)
+
     # Merge all the rectangles into one
     combined_rect = union_rectangles(text_to_replace)
 
@@ -137,22 +135,6 @@ if __name__ == "__main__":
         {"text": "C esto es un link", "font": "Times-Roman", "fontsize": 10, "link": "https://www.ejemplo3.com"},
         {"text": "D esto es un link", "font": "Times-Roman", "fontsize": 10, "link": "https://www.ejemplo4.com"},
         {"text": "E esto es un link", "font": "Times-Roman", "fontsize": 10, "link": "https://www.ejemplo5.com"},
-        {"text": "F esto es un link", "font": "Times-Roman", "fontsize": 10, "link": "https://www.ejemplo5.com"},
-        {"text": "G esto es un link", "font": "Times-Roman", "fontsize": 10, "link": "https://www.ejemplo5.com"},
-        {"text": "H esto es un link", "font": "Times-Roman", "fontsize": 10, "link": "https://www.ejemplo5.com"},
-        {"text": "I esto es un link", "font": "Times-Roman", "fontsize": 10, "link": "https://www.ejemplo5.com"},
-        {"text": "J esto es un link", "font": "Times-Roman", "fontsize": 10, "link": "https://www.ejemplo5.com"},
-        {"text": "K esto es un link", "font": "Times-Roman", "fontsize": 10, "link": "https://www.ejemplo5.com"},
-        {"text": "L esto es un link", "font": "Times-Roman", "fontsize": 10, "link": "https://www.ejemplo5.com"},
-        {"text": "M esto es un link", "font": "Times-Roman", "fontsize": 10, "link": "https://www.ejemplo5.com"},
-        {"text": "N esto es un link", "font": "Times-Roman", "fontsize": 10, "link": "https://www.ejemplo5.com"},
-        {"text": "O esto es un link", "font": "Times-Roman", "fontsize": 10, "link": "https://www.ejemplo5.com"},
-        {"text": "P esto es un link", "font": "Times-Roman", "fontsize": 10, "link": "https://www.ejemplo5.com"},
-        {"text": "Q esto es un link", "font": "Times-Roman", "fontsize": 10, "link": "https://www.ejemplo5.com"},
-        {"text": "R esto es un link", "font": "Times-Roman", "fontsize": 10, "link": "https://www.ejemplo5.com"},
-        {"text": "S esto es un link", "font": "Times-Roman", "fontsize": 10, "link": "https://www.ejemplo5.com"},
-        {"text": "T esto es un link", "font": "Times-Roman", "fontsize": 10, "link": "https://www.ejemplo5.com"},
-        {"text": "I esto es un link", "font": "Times-Roman", "fontsize": 10, "link": "https://www.ejemplo5.com"},
     ]
 
     modify_scientific_paper(test_file_name, new_text)
